@@ -16,7 +16,7 @@ filetype plugin indent on     " ファイルタイプ別プラグインとイン
 
 
 " -------------------------
-" 見た目と UI
+" UI設定
 " -------------------------
 set number                    " 行番号
 set cursorline                " カーソル行をハイライト
@@ -28,7 +28,7 @@ set termguicolors             " True Color（24bit）有効化
 
 
 " -------------------------
-" 編集の快適性
+" 編集設定
 " -------------------------
 set tabstop=2                 " タブ幅
 set shiftwidth=2              " 自動インデント幅
@@ -56,6 +56,9 @@ set clipboard=unnamed         " Macのクリップボードと共有
 " -------------------------
 " キーコンフィグ
 " -------------------------
+" ハイライトオフ 
+nnoremap <ESC><ESC> :nohlsearch<CR>
+
 " ウィンドウ間移動を Ctrl + hjkl に
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
@@ -63,23 +66,23 @@ nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
 
 " タブ操作
-let mapleader = " "
 nnoremap <Leader>tn :tabnew<CR>
 nnoremap <Leader>th :tabprev<CR>
 nnoremap <Leader>tl :tabnext<CR>
 nnoremap <Leader>tc :tabclose<CR>
-
-" バッファ操作
-" nnoremap <Leader>bp :brev<CR>
-" nnoremap <Leader>bn :bnext<CR>
-" nnoremap <Leader>bl :ls<CR>
-" nnoremap <Leader>bb :Buffers<CR>
 
 " fzf関連
 nnoremap <Leader>s :Files<CR>
 nnoremap <Leader>g :GFiles<CR>
 nnoremap <Leader>b :Buffers<CR>
 nnoremap <Leader>r :Rg<Space>
+
+
+" ターミナル
+nnoremap <Leader>t :terminal<CR>
+
+" 再読み込みコマンド
+command! Reload execute 'source %' | echo 'Reloaded ' . expand('%')
 
 
 " -------------------------
@@ -105,6 +108,8 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
 Plug 'tpope/vim-commentary'
+
+Plug 'airblade/vim-gitgutter'
 
 call plug#end()
 
@@ -143,7 +148,7 @@ let g:vim_markdown_folding_disabled = 1
 " -------------------------
 " IME自動切り替え制御
 " -------------------------
-let g:im_select_command = '/opt/homebrew/bin/im-select'
+let g:im_select_command = 'im-select'
 let g:im_select_default = 'com.apple.inputmethod.Kotoeri.RomajiTyping.Roman'
 let g:im_select_enable = 1
 let g:im_select_enable_for_gvim = 1
