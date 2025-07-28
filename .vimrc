@@ -101,8 +101,7 @@ Plug 'lambdalisue/vim-fern-renderer-nerdfont'
 Plug 'lambdalisue/fern-hijack.vim'
 Plug 'lambdalisue/fern-git-status.vim'
 
-Plug 'godlygeek/tabular'
-Plug 'preservim/vim-markdown'
+Plug 'SidOfc/mkdx'
 
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
@@ -140,9 +139,9 @@ let g:fern#renderer = "nerdfont"
 
 
 " -------------------------
-" Vim Markdownの設定
+" Markdownの設定
 " -------------------------
-let g:vim_markdown_folding_disabled = 1
+let g:mkdx#settings = { 'map': { 'enabel': 1, 'prefix': ',' }, 'checkbox': { 'toggles': [' ', 'x'] } }
 
 
 " -------------------------
