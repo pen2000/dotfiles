@@ -1,10 +1,4 @@
 " -------------------------
-" パス設定
-" -------------------------
-let $PATH = '/opt/homebrew/bin:' . $PATH
-
-
-" -------------------------
 " 基本設定
 " -------------------------
 let mapleader = "\<space>"
@@ -78,11 +72,9 @@ nnoremap <Leader>b :Buffers<CR>
 nnoremap <Leader>r :Rg<Space>
 
 
-" ターミナル
-nnoremap <Leader>t :terminal<CR>
-
-" 再読み込みコマンド
+" 独自コマンド
 command! Reload execute 'source %' | echo 'Reloaded ' . expand('%')
+command! Setting execute 'e ~/.vimrc'
 
 
 " -------------------------
@@ -92,16 +84,6 @@ call plug#begin('~/.vim/plugged')
 
 Plug 'rose-pine/vim'
 Plug 'itchyny/lightline.vim'
-
-Plug 'brglng/vim-im-select'
-
-Plug 'lambdalisue/nerdfont.vim'
-Plug 'lambdalisue/fern.vim'
-Plug 'lambdalisue/vim-fern-renderer-nerdfont'
-Plug 'lambdalisue/fern-hijack.vim'
-Plug 'lambdalisue/fern-git-status.vim'
-
-Plug 'SidOfc/mkdx'
 
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
@@ -119,36 +101,4 @@ call plug#end()
 set background=dark
 colorscheme rosepine
 let g:lightline = { 'colorscheme': 'rosepine' }
-
-
-" -------------------------
-" GUIフォント（MacVim専用）
-" -------------------------
-if has('gui_running')
-  set guifont=UDEV\ Gothic\ 35NF:h12
-  set guifontwide=UDEV\ Gothic\ 35NF:h12
-endif
-
-
-" -------------------------
-" Fernの設定
-" -------------------------
-nnoremap <Leader>e :Fern . -drawer -toggle -reveal=%<CR>
-nnoremap <Leader>f :Fern %:h -reveal=% -drawer -toggle<CR>
-let g:fern#renderer = "nerdfont"
-
-
-" -------------------------
-" Markdownの設定
-" -------------------------
-let g:mkdx#settings = { 'map': { 'enabel': 1, 'prefix': ',' }, 'checkbox': { 'toggles': [' ', 'x'] } }
-
-
-" -------------------------
-" IME自動切り替え制御
-" -------------------------
-let g:im_select_command = 'im-select'
-let g:im_select_default = 'com.apple.inputmethod.Kotoeri.RomajiTyping.Roman'
-let g:im_select_enable = 1
-let g:im_select_enable_for_gvim = 1
 
