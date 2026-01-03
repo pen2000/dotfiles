@@ -1,7 +1,4 @@
-require("base")
-require("lazy_nvim")
-require("autocmds")
-require("options")
-require("keymaps")
-require("colorscheme")
+require('deps_plugins')
+require('user_settings')
+require('user_commands')
 
