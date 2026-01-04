@@ -74,14 +74,35 @@ later(function()
 end)
 
 later(function() 
-  require('mini.pick').setup() 
+  require('mini.pick').setup({
+    mappings = {
+      move_down = "<C-j>",
+      move_up   = "<C-k>",
+    },
+  })
+
   vim.ui.select = MiniPick.ui_select
+
   vim.keymap.set('n', '<leader>f', function()
     MiniPick.start({ source = { items = vim.fn.readdir('.') } })
   end, { desc = 'Pick from files' })
+
   vim.keymap.set('n', '<leader>g', function()
     MiniPick.builtin.files({ tool = 'git' })
   end, { desc = 'Pick from git' })
+
+  vim.keymap.set('n', '<leader>b', function()
+    local wipeout_cur = function()
+      vim.api.nvim_buf_delete(MiniPick.get_picker_matches().current.bufnr, {})
+    end
+    local buffer_mappings = { wipeout = { char = '<c-d>', func = wipeout_cur } }
+    MiniPick.builtin.buffers({ include_current = false }, { mappings = buffer_mappings })
+  end, { desc = 'Pick from buffers' })
+
+  require('mini.visits').setup()
+  vim.keymap.set('n', '<leader>h', function()
+    require('mini.extra').pickers.visit_paths()
+  end, { desc = 'Pick from histories' })
 end)
 
 later(function()
