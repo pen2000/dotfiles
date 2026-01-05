@@ -22,40 +22,40 @@ local add, now, later = MiniDeps.add, MiniDeps.now, MiniDeps.later
 
 -- Safely execute immediately
 now(function()
-  require('mini.basics').setup() 
+  require('mini.basics').setup()
 end)
 
 now(function()
   vim.o.termguicolors = true
-  vim.cmd('colorscheme miniautumn')
+  vim.cmd('colorscheme miniwinter')
 end)
 
 now(function()
-  require('mini.notify').setup() 
+  require('mini.notify').setup()
 end)
 
 now(function()
-  require('mini.icons').setup() 
+  require('mini.icons').setup()
 end)
 
 now(function()
-  require('mini.tabline').setup() 
+  require('mini.tabline').setup()
 end)
 
 now(function()
-  require('mini.statusline').setup() 
+  require('mini.statusline').setup()
 end)
 
 now(function()
-  require('mini.indentscope').setup() 
+  require('mini.indentscope').setup()
 end)
 
 now(function()
-  require('mini.completion').setup() 
+  require('mini.completion').setup()
 end)
 
 now(function()
-  require('mini.misc').setup() 
+  require('mini.misc').setup()
 end)
 
 now(function()
@@ -65,15 +65,15 @@ end)
 
 
 -- Safely execute later
-later(function() 
-  require('mini.ai').setup() 
+later(function()
+  require('mini.ai').setup()
 end)
 
 later(function()
   require('mini.comment').setup()
 end)
 
-later(function() 
+later(function()
   require('mini.pick').setup({
     mappings = {
       move_down = "<C-j>",
@@ -83,9 +83,9 @@ later(function()
 
   vim.ui.select = MiniPick.ui_select
 
-  vim.keymap.set('n', '<leader>f', function()
-    MiniPick.start({ source = { items = vim.fn.readdir('.') } })
-  end, { desc = 'Pick from files' })
+  vim.keymap.set('n', '<leader>f', MiniPick.builtin.files, {
+    desc = 'Find files',
+  })
 
   vim.keymap.set('n', '<leader>g', function()
     MiniPick.builtin.files({ tool = 'git' })
@@ -106,35 +106,35 @@ later(function()
 end)
 
 later(function()
-  require('mini.surround').setup() 
+  require('mini.surround').setup()
 end)
 
 later(function()
-  require('mini.notify').setup() 
+  require('mini.notify').setup()
 end)
 
 later(function()
-  require('mini.bracketed').setup() 
+  require('mini.bracketed').setup()
 end)
 
 later(function()
-  require('mini.cursorword').setup() 
+  require('mini.cursorword').setup()
 end)
 
 later(function()
-  require('mini.diff').setup() 
+  require('mini.diff').setup()
 end)
 
 later(function()
-  require('mini.trailspace').setup() 
+  require('mini.trailspace').setup()
 end)
 
 later(function()
-  require('mini.git').setup() 
+  require('mini.git').setup()
 end)
 
 later(function()
-  require('mini.bufremove').setup() 
+  require('mini.bufremove').setup()
 end)
 
 later(function()
