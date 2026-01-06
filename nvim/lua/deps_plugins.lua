@@ -221,6 +221,9 @@ later(function()
   end
   local clue = require('mini.clue')
   clue.setup({
+    window = {
+      delay = 800
+    },
     triggers = {
       -- Leader triggers
       mode_nx('<leader>'),
