@@ -87,9 +87,9 @@ later(function()
     desc = 'Find files',
   })
 
-  vim.keymap.set('n', '<leader>g', function()
+  vim.keymap.set('n', '<leader>gf', function()
     MiniPick.builtin.files({ tool = 'git' })
-  end, { desc = 'Pick from git' })
+  end, { desc = 'Find from git' })
 
   vim.keymap.set('n', '<leader>b', function()
     local wipeout_cur = function()
@@ -97,12 +97,12 @@ later(function()
     end
     local buffer_mappings = { wipeout = { char = '<c-d>', func = wipeout_cur } }
     MiniPick.builtin.buffers({ include_current = false }, { mappings = buffer_mappings })
-  end, { desc = 'Pick from buffers' })
+  end, { desc = 'Find buffers' })
 
   require('mini.visits').setup()
-  vim.keymap.set('n', '<leader>l', function()
+  vim.keymap.set('n', '<leader>h', function()
     require('mini.extra').pickers.visit_paths()
-  end, { desc = 'Pick from histories' })
+  end, { desc = 'Find histories' })
 end)
 
 later(function()
@@ -155,9 +155,9 @@ end)
 
 later(function()
   add('sindrets/diffview.nvim')
-  vim.keymap.set('n', '<leader>hd', '<cmd>DiffviewOpen<CR>', { desc = 'Open Diffview' })
-  vim.keymap.set('n', '<leader>hh', '<cmd>DiffviewFileHistory %<CR>', { desc = 'Open Current History' })
-  vim.keymap.set('n', '<leader>hH', '<cmd>DiffviewFileHistory<CR>', { desc = 'Open All History' })
+  vim.keymap.set('n', '<leader>gd', '<cmd>DiffviewOpen<CR>', { desc = 'Open Diffview' })
+  vim.keymap.set('n', '<leader>gh', '<cmd>DiffviewFileHistory %<CR>', { desc = 'Open Current History' })
+  vim.keymap.set('n', '<leader>gH', '<cmd>DiffviewFileHistory<CR>', { desc = 'Open All History' })
 end)
 
 later(function()
