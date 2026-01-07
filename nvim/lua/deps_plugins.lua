@@ -74,38 +74,6 @@ later(function()
 end)
 
 later(function()
-  require('mini.pick').setup({
-    mappings = {
-      move_down = "<C-j>",
-      move_up   = "<C-k>",
-    },
-  })
-
-  vim.ui.select = MiniPick.ui_select
-
-  vim.keymap.set('n', '<leader>f', MiniPick.builtin.files, {
-    desc = 'Find files',
-  })
-
-  vim.keymap.set('n', '<leader>gf', function()
-    MiniPick.builtin.files({ tool = 'git' })
-  end, { desc = 'Find from git' })
-
-  vim.keymap.set('n', '<leader>b', function()
-    local wipeout_cur = function()
-      vim.api.nvim_buf_delete(MiniPick.get_picker_matches().current.bufnr, {})
-    end
-    local buffer_mappings = { wipeout = { char = '<c-d>', func = wipeout_cur } }
-    MiniPick.builtin.buffers({ include_current = false }, { mappings = buffer_mappings })
-  end, { desc = 'Find buffers' })
-
-  require('mini.visits').setup()
-  vim.keymap.set('n', '<leader>h', function()
-    require('mini.extra').pickers.visit_paths()
-  end, { desc = 'Find histories' })
-end)
-
-later(function()
   require('mini.surround').setup()
 end)
 
@@ -151,6 +119,34 @@ later(function()
   add('https://github.com/vim-jp/vimdoc-ja')
   -- Prefer Japanese as the help language
   vim.opt.helplang:prepend('ja')
+end)
+
+later(function()
+  add({
+    source = 'nvim-telescope/telescope.nvim',
+    checkout = 'v0.1.9',
+    depends = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons',
+      'nvim-treesitter/nvim-treesitter'
+    }
+  })
+
+  add({
+    source = 'nvim-telescope/telescope-frecency.nvim',
+    checkout = '^0.9.0'
+  })
+
+  require('telescope').load_extension 'frecency'
+  require('telescope').setup()
+
+  local builtin = require('telescope.builtin')
+  vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Find files' })
+  vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Grep files' })
+  vim.keymap.set('n', '<leader>fs', builtin.grep_string, { desc = 'Grep by select string' })
+  vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Find buffers' })
+  vim.keymap.set('n', '<leader>h', require('telescope').extensions.frecency.frecency, { desc = 'List histories' })
+  vim.keymap.set('n', '<leader>gs', builtin.git_status, { desc = 'List git status' })
 end)
 
 later(function()
