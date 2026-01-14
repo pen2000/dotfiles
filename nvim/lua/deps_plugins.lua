@@ -31,7 +31,9 @@ now(function()
 end)
 
 now(function()
-  require('mini.notify').setup()
+  require('mini.notify').setup({
+    lsp_progress = { enable = false },
+  })
 end)
 
 now(function()
@@ -75,10 +77,6 @@ end)
 
 later(function()
   require('mini.surround').setup()
-end)
-
-later(function()
-  require('mini.notify').setup()
 end)
 
 later(function()
@@ -142,18 +140,21 @@ later(function()
 
   local builtin = require('telescope.builtin')
   vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Find files' })
-  vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Grep files' })
-  vim.keymap.set('n', '<leader>fs', builtin.grep_string, { desc = 'Grep by select string' })
+  vim.keymap.set('n', '<leader>fg', builtin.git_files, { desc = 'Find git files' })
   vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Find buffers' })
-  vim.keymap.set('n', '<leader>h', require('telescope').extensions.frecency.frecency, { desc = 'List histories' })
-  vim.keymap.set('n', '<leader>gs', builtin.git_status, { desc = 'List git status' })
+  vim.keymap.set('n', '<leader>fd', builtin.lsp_definitions, { desc = 'Find definitions' })
+  vim.keymap.set('n', '<leader>fr', builtin.lsp_references, { desc = 'Find references' })
+  vim.keymap.set('n', '<leader>fh', require('telescope').extensions.frecency.frecency, { desc = 'Find histories' })
+  vim.keymap.set('n', '<leader>gf', builtin.live_grep, { desc = 'Grep files' })
+  vim.keymap.set('n', '<leader>gs', builtin.grep_string, { desc = 'Grep by select string' })
+  vim.keymap.set('n', '<leader>hs', builtin.git_status, { desc = 'Git status' })
 end)
 
 later(function()
   add('sindrets/diffview.nvim')
-  vim.keymap.set('n', '<leader>gd', '<cmd>DiffviewOpen<CR>', { desc = 'Open Diffview' })
-  vim.keymap.set('n', '<leader>gh', '<cmd>DiffviewFileHistory %<CR>', { desc = 'Open Current History' })
-  vim.keymap.set('n', '<leader>gH', '<cmd>DiffviewFileHistory<CR>', { desc = 'Open All History' })
+  vim.keymap.set('n', '<leader>hd', '<cmd>DiffviewOpen<CR>', { desc = 'Open Diffview' })
+  vim.keymap.set('n', '<leader>hh', '<cmd>DiffviewFileHistory %<CR>', { desc = 'Open Current History' })
+  vim.keymap.set('n', '<leader>hH', '<cmd>DiffviewFileHistory<CR>', { desc = 'Open All History' })
 end)
 
 later(function()
@@ -176,6 +177,17 @@ later(function()
       map({'o', 'x'}, 'ih', gitsigns.select_hunk, { desc = 'Select hunk'})
     end
   })
+
+  add({source = 'tpope/vim-fugitive'})
+  add({ source = 'tpope/vim-rhubarb' })
+  vim.keymap.set('n', '<leader>ho', ':GBrowse<CR>', { desc = 'Open file on GitHub' })
+  vim.keymap.set('v', '<leader>ho', ':GBrowse<CR>', { desc = 'Open selection on GitHub' })
+end)
+
+later(function ()
+  add('https://github.com/y3owk1n/undo-glow.nvim')
+  local undo_glow = require('undo-glow')
+  undo_glow.setup()
 end)
 
 later(function()
@@ -238,6 +250,71 @@ later(function()
       clue.gen_clues.windows({ submode_resize = true, submode_move = true }),
       clue.gen_clues.z(),
     },
+  })
+end)
+
+later(function()
+  add({
+      source = 'neovim/nvim-lspconfig',
+      checkout = 'v1.8.0',
+      depends = {
+          {
+            source = 'williamboman/mason.nvim',
+            checkout = 'v1.11.0'
+          },
+          {
+            source = 'williamboman/mason-lspconfig.nvim',
+            checkout = 'v1.32.0'
+          }
+      }
+  })
+
+  require('mason').setup()
+  local lspconfig = require('lspconfig')
+  local capabilities = vim.lsp.protocol.make_client_capabilities()
+  capabilities.textDocument.foldingRange = {
+    dynamicRegistration = false,
+    lineFoldingOnly = true,
+  }
+
+  require('mason-lspconfig').setup {
+    ensure_installed = {
+      'lua_ls',
+      'bashls',
+      'html',
+      'cssls',
+      'jsonls',
+      'ts_ls',
+      'solargraph',
+      'dockerls',
+      'docker_compose_language_service',
+      'marksman',
+    },
+  }
+
+  require('mason-lspconfig').setup_handlers {
+    function(server_name)
+      lspconfig[server_name].setup {
+        capabilities = capabilities,
+      }
+    end,
+  }
+
+  local opts = { noremap=true, silent=true }
+  vim.keymap.set('n', '<space>ld', vim.diagnostic.open_float, opts)
+  vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
+  vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
+
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = vim.api.nvim_create_augroup("UserLspConfig", {}),
+    callback = function(args)
+      vim.keymap.set("n", "<leader>lf", function()
+        vim.lsp.buf.format({ async = true })       -- 非同期でフォーマットを実行
+      end, { buffer = args.buf, desc = "Format Buffer" })
+      vim.keymap.set("v", "<leader>lf", function()
+        vim.lsp.buf.format()
+      end, { buffer = args.buf, desc = "Format Selection" })
+    end
   })
 end)
 

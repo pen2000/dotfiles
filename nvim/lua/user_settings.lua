@@ -4,9 +4,9 @@ vim.opt.shiftwidth = 2
 vim.opt.softtabstop = 2
 vim.opt.tabstop = 2
 
-vim.keymap.set("n", "<leader>l", function()
+vim.keymap.set("n", "<leader>c", function()
   vim.cmd("nohlsearch")
-end, { silent = true })
+end, { silent = true, desc = "Clear hilight" })
 
 vim.opt.listchars = { tab = ">.", trail = "_", eol = "$" }
 vim.opt.list = true
