@@ -132,7 +132,7 @@ later(function()
 
   add({
     source = 'nvim-telescope/telescope-frecency.nvim',
-    checkout = '^0.9.0'
+    checkout = '0.9.0'
   })
 
   require('telescope').load_extension 'frecency'
