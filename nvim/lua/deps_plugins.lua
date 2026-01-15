@@ -120,6 +120,10 @@ later(function()
 end)
 
 later(function()
+  add('https://github.com/h3pei/copy-file-path.nvim')
+end)
+
+later(function()
   add({
     source = 'nvim-telescope/telescope.nvim',
     checkout = 'v0.1.9',
