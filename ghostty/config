@@ -75,3 +75,6 @@ window-save-state = always
 # macOS 設定
 macos-titlebar-style = tabs
 macos-option-as-alt = true
+
+keybind = "option+left=previous_tab"
+keybind = "option+right=next_tab"
