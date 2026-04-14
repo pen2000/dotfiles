@@ -10,6 +10,9 @@
 ;; キーバインド (C-c t がプレフィックス):
 ;;   C-c t t  今日のファイルを開く
 ;;   C-c t a  工数エントリを追加
+;;   C-c t i  clock-in (作業開始)
+;;   C-c t o  clock-out (作業終了・テーブル追記)
+;;   C-c t c  clock 状態確認
 ;;   C-c t s  当日サマリーを表示
 ;;   C-c t S  日付指定でサマリーを表示
 ;;   C-c t m  プロジェクト定義ファイルを開く
@@ -64,12 +67,12 @@
     (insert "* プロジェクト一覧\n\n")
     (insert "プロジェクト名とフェーズを追加してください。\n")
     (insert "フェーズが不要な場合は空欄にしてください。\n\n")
-    (insert "| プロジェクト名 | フェーズ |\n")
-    (insert "|--------------|----------|\n")
-    (insert "| サンプルPJ | 設計 |\n")
-    (insert "| サンプルPJ | 実装 |\n")
-    (insert "| サンプルPJ | テスト |\n")
-    (insert "| デイリーミーティング | |\n")))
+    (insert "| プロジェクト名 | フェーズ | PJコード |\n")
+    (insert "|--------------|----------|----------|\n")
+    (insert "| サンプルPJ | 設計 | PJ001 |\n")
+    (insert "| サンプルPJ | 実装 | PJ001 |\n")
+    (insert "| サンプルPJ | テスト | PJ001 |\n")
+    (insert "| デイリーミーティング | | |\n")))
 
 (defun timetrack--read-master ()
   "定義ファイルを読み込み、(プロジェクト . (フェーズ...)) のalistを返す。"
@@ -133,7 +136,7 @@
       (message "本日のファイルを作成しました: %s" path))
     (find-file path)))
 
-;;;; エントリ追加
+;;;; エントリ追加 (共通)
 
 (defun timetrack--find-table-end (buf)
   "BUF 内の「作業記録」セクションにあるテーブルの最終行位置を返す。
@@ -146,6 +149,27 @@
           (while (re-search-forward "^|" nil t)
             (setq last-pos (line-end-position)))
           last-pos)))))
+
+(defun timetrack--insert-entry (project phase task hours-str)
+  "PROJECT/PHASE/TASK/HOURS-STR を今日の日次ファイルに追記する。"
+  (let* ((path  (timetrack--daily-path))
+         (today (format-time-string "%Y-%m-%d")))
+    (unless (file-exists-p path)
+      (timetrack--create-daily path today))
+    (let* ((buf       (find-file-noselect path))
+           (table-end (timetrack--find-table-end buf)))
+      (with-current-buffer buf
+        (if table-end
+            (progn
+              (goto-char table-end)
+              (end-of-line)
+              (insert (format "\n| %s | %s | %s | %s |"
+                              project phase task hours-str)))
+          (goto-char (point-max))
+          (insert "\n* 作業記録\n\n| プロジェクト | フェーズ | タスク名 | 工数 |\n")
+          (insert "|-------------|---------|---------|------|\n")
+          (insert (format "| %s | %s | %s | %s |" project phase task hours-str)))
+        (save-buffer)))))
 
 ;;;###autoload
 (defun timetrack-add-entry ()
@@ -163,30 +187,120 @@
                                       nil nil))
                     (t (read-string "フェーズ (空でOK): "))))
          (task     (read-string "タスク名: "))
-         (hours    (read-string "工数 (例: 1.5): "))
-         (path     (timetrack--daily-path))
-         (today    (format-time-string "%Y-%m-%d")))
-    ;; 入力検証
+         (hours    (read-string "工数 (例: 1.5): ")))
     (unless (string-match-p "^[0-9]+\\.?[0-9]*$" hours)
       (user-error "工数は数値で入力してください: %s" hours))
-    (unless (file-exists-p path)
-      (timetrack--create-daily path today))
-    (let* ((buf      (find-file-noselect path))
-           (table-end (timetrack--find-table-end buf)))
-      (with-current-buffer buf
-        (if table-end
-            (progn
-              (goto-char table-end)
-              (end-of-line)
-              (insert (format "\n| %s | %s | %s | %s |"
-                              project phase task hours)))
-          ;; テーブルが見つからない場合はファイル末尾に追記
-          (goto-char (point-max))
-          (insert (format "\n* 作業記録\n\n| プロジェクト | フェーズ | タスク名 | 工数 |\n"))
-          (insert "|-------------|---------|---------|------|\n")
-          (insert (format "| %s | %s | %s | %s |" project phase task hours)))
-        (save-buffer)))
+    (timetrack--insert-entry project phase task hours)
     (message "追加: %s | %s | %s | %s 時間" project phase task hours)))
+
+;;;; Clock-in / Clock-out
+
+(defvar timetrack--current-clock nil
+  "実行中のクロック: (project phase task start-time) または nil。")
+
+(defvar timetrack--update-timer nil
+  "モードライン更新用タイマー。")
+
+(defun timetrack--format-elapsed (seconds)
+  "SECONDS を H:MM 形式の文字列に変換する。"
+  (let* ((total-mins (floor (/ seconds 60)))
+         (hours      (floor (/ total-mins 60)))
+         (mins       (mod total-mins 60)))
+    (format "%d:%02d" hours mins)))
+
+(defun timetrack--mode-line-indicator ()
+  "モードライン表示用の文字列を返す。clock-in 中のみ値を返す。"
+  (when timetrack--current-clock
+    (let* ((elapsed (float-time (time-subtract (current-time)
+                                               (nth 3 timetrack--current-clock))))
+           (task    (nth 2 timetrack--current-clock)))
+      (format " [⏱%s %s]"
+              (timetrack--format-elapsed elapsed)
+              task))))
+
+(defun timetrack--start-mode-line-timer ()
+  "アイドル時のモードライン強制更新タイマーを開始する。"
+  (unless timetrack--update-timer
+    (setq timetrack--update-timer
+          (run-with-timer 0 60 #'force-mode-line-update t))))
+
+(defun timetrack--stop-mode-line-timer ()
+  "モードライン更新タイマーを停止する。"
+  (when timetrack--update-timer
+    (cancel-timer timetrack--update-timer)
+    (setq timetrack--update-timer nil)
+    (force-mode-line-update t)))
+
+(defun timetrack--select-project-phase ()
+  "プロジェクト・フェーズをインタラクティブに選択し (project phase) を返す。"
+  (let* ((master   (timetrack--read-master))
+         (projects (mapcar #'car master))
+         (project  (completing-read "プロジェクト: " projects nil nil))
+         (phases   (cdr (assoc project master)))
+         (phase    (cond
+                    (phases
+                     (completing-read "フェーズ: "
+                                      (append phases (list ""))
+                                      nil nil))
+                    (t (read-string "フェーズ (空でOK): ")))))
+    (list project phase)))
+
+;;;###autoload
+(defun timetrack-clock-in ()
+  "作業の開始時刻を記録する (clock-in)。"
+  (interactive)
+  (timetrack--ensure-dir)
+  (when timetrack--current-clock
+    (unless (y-or-n-p
+             (format "現在「%s」が進行中です。切り替えますか? "
+                     (nth 2 timetrack--current-clock)))
+      (user-error "clock-in をキャンセルしました")))
+  (let* ((proj-phase (timetrack--select-project-phase))
+         (project    (nth 0 proj-phase))
+         (phase      (nth 1 proj-phase))
+         (task       (read-string "タスク名: ")))
+    (setq timetrack--current-clock (list project phase task (current-time)))
+    (timetrack--start-mode-line-timer)
+    (message "clock-in: %s / %s / %s [%s]"
+             project phase task (format-time-string "%H:%M"))))
+
+;;;###autoload
+(defun timetrack-clock-out ()
+  "作業の終了時刻を記録し、工数エントリをテーブルに追加する (clock-out)。"
+  (interactive)
+  (unless timetrack--current-clock
+    (user-error "現在 clock-in されていません"))
+  (let* ((project (nth 0 timetrack--current-clock))
+         (phase   (nth 1 timetrack--current-clock))
+         (task    (nth 2 timetrack--current-clock))
+         (start   (nth 3 timetrack--current-clock))
+         (elapsed (float-time (time-subtract (current-time) start)))
+         (hours   (/ elapsed 3600.0))
+         (hours-str (format "%.2f" hours)))
+    (setq timetrack--current-clock nil)
+    (timetrack--stop-mode-line-timer)
+    (timetrack--insert-entry project phase task hours-str)
+    (message "clock-out: %s / %s / %s → %.2f h" project phase task hours)))
+
+;;;###autoload
+(defun timetrack-clock-status ()
+  "現在のクロック状態を表示する。"
+  (interactive)
+  (if timetrack--current-clock
+      (let* ((project (nth 0 timetrack--current-clock))
+             (phase   (nth 1 timetrack--current-clock))
+             (task    (nth 2 timetrack--current-clock))
+             (start   (nth 3 timetrack--current-clock))
+             (elapsed (float-time (time-subtract (current-time) start))))
+        (message "進行中: %s / %s / %s (経過 %s)"
+                 project phase task
+                 (timetrack--format-elapsed elapsed)))
+    (message "現在 clock-in されていません")))
+
+;;;; モードライン登録
+
+(unless (member '(:eval (timetrack--mode-line-indicator)) global-mode-string)
+  (add-to-list 'global-mode-string '(:eval (timetrack--mode-line-indicator)) t))
 
 ;;;; サマリー
 
@@ -298,6 +412,9 @@
   (let ((m (make-sparse-keymap "Timetrack")))
     (define-key m (kbd "t") #'timetrack-open-today)
     (define-key m (kbd "a") #'timetrack-add-entry)
+    (define-key m (kbd "i") #'timetrack-clock-in)
+    (define-key m (kbd "o") #'timetrack-clock-out)
+    (define-key m (kbd "c") #'timetrack-clock-status)
     (define-key m (kbd "s") #'timetrack-show-summary)
     (define-key m (kbd "S") #'timetrack-show-summary-for-date)
     (define-key m (kbd "m") #'timetrack-open-master)
@@ -307,12 +424,13 @@ C-c t がプレフィックスとして設定される。")
 
 ;; which-key の説明テキスト設定
 (with-eval-after-load 'which-key
-  ;; C-c t 自体の説明
   (which-key-add-key-based-replacements "C-c t" "勤怠トラッキング")
-  ;; 各サブキーの説明
   (which-key-add-keymap-based-replacements timetrack-map
     "t" "今日のファイルを開く"
     "a" "工数エントリを追加"
+    "i" "clock-in (作業開始)"
+    "o" "clock-out (作業終了)"
+    "c" "clock 状態確認"
     "s" "今日のサマリー"
     "S" "日付指定でサマリー"
     "m" "プロジェクト定義を開く"))
