@@ -35,7 +35,7 @@
   :prefix "timetrack-"
   :group 'tools)
 
-(defcustom timetrack-directory (expand-file-name "~/works/notes/timetrack")
+(defcustom timetrack-directory (expand-file-name "timetrack" "~/org")
   "勤怠ファイルを格納するディレクトリ。"
   :type 'directory
   :group 'timetrack)
