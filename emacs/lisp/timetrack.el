@@ -58,6 +58,13 @@
   "勤怠ディレクトリを作成する。"
   (make-directory timetrack-directory t))
 
+;;;; 補完ヘルパー
+
+(defun timetrack--completing-read (prompt collection)
+  "部分一致補完を使って PROMPT で COLLECTION から選択する。"
+  (let ((completion-styles '(basic substring partial-completion)))
+    (completing-read prompt collection nil nil)))
+
 ;;;; 定義ファイル
 
 (defun timetrack--create-master ()
@@ -178,13 +185,12 @@
   (timetrack--ensure-dir)
   (let* ((master   (timetrack--read-master))
          (projects (mapcar #'car master))
-         (project  (completing-read "プロジェクト: " projects nil nil))
+         (project  (timetrack--completing-read "プロジェクト: " projects))
          (phases   (cdr (assoc project master)))
          (phase    (cond
                     (phases
-                     (completing-read "フェーズ: "
-                                      (append phases (list ""))
-                                      nil nil))
+                     (timetrack--completing-read "フェーズ: "
+                                                (append phases (list ""))))
                     (t (read-string "フェーズ (空でOK): "))))
          (task     (read-string "タスク名: "))
          (hours    (read-string "工数 (例: 1.5): ")))
@@ -235,13 +241,12 @@
   "プロジェクト・フェーズをインタラクティブに選択し (project phase) を返す。"
   (let* ((master   (timetrack--read-master))
          (projects (mapcar #'car master))
-         (project  (completing-read "プロジェクト: " projects nil nil))
+         (project  (timetrack--completing-read "プロジェクト: " projects))
          (phases   (cdr (assoc project master)))
          (phase    (cond
                     (phases
-                     (completing-read "フェーズ: "
-                                      (append phases (list ""))
-                                      nil nil))
+                     (timetrack--completing-read "フェーズ: "
+                                                (append phases (list ""))))
                     (t (read-string "フェーズ (空でOK): ")))))
     (list project phase)))
 
