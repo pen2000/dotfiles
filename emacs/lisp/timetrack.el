@@ -10,6 +10,9 @@
 ;; キーバインド (C-c t がプレフィックス):
 ;;   C-c t t  今日のファイルを開く
 ;;   C-c t a  工数エントリを追加
+;;   C-c t n  タスクを追加 (** TODO タスク名)
+;;   C-c t l  今日のタスク一覧
+;;   C-c t L  全日付の未完了タスク一覧
 ;;   C-c t i  clock-in (作業開始)
 ;;   C-c t o  clock-out (作業終了・テーブル追記)
 ;;   C-c t c  clock 状態確認
@@ -251,6 +254,41 @@
     (list project phase)))
 
 ;;;###autoload
+(defun timetrack-add-task (task-name)
+  "TASK-NAME を今日の日次ファイルの「タスク」セクションに追加する。
+形式: ** TODO タスク名"
+  (interactive "sタスク名: ")
+  (when (string-empty-p task-name)
+    (user-error "タスク名を入力してください"))
+  (timetrack--ensure-dir)
+  (let* ((path  (timetrack--daily-path))
+         (today (format-time-string "%Y-%m-%d")))
+    (unless (file-exists-p path)
+      (timetrack--create-daily path today))
+    (let ((buf (find-file-noselect path)))
+      (with-current-buffer buf
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward "^\\* タスク" nil t)
+              (progn
+                ;; セクション末尾 (次の見出しまたはファイル末) の手前に挿入
+                (let ((insert-pos
+                       (save-excursion
+                         (if (re-search-forward "^\\*+ " nil t)
+                             (line-beginning-position)
+                           (point-max)))))
+                  (goto-char insert-pos)
+                  ;; 末尾の空行を確保してから挿入
+                  (unless (bolp) (insert "\n"))
+                  (insert (format "** TODO %s\n" task-name))))
+            ;; タスクセクションが存在しない場合は末尾に追加
+            (goto-char (point-max))
+            (unless (bolp) (insert "\n"))
+            (insert (format "\n* タスク\n\n** TODO %s\n" task-name))))
+        (save-buffer))
+      (message "タスクを追加しました: %s" task-name))))
+
+;;;###autoload
 (defun timetrack-clock-in ()
   "作業の開始時刻を記録する (clock-in)。"
   (interactive)
@@ -410,6 +448,247 @@
          (tbl     (timetrack--build-summary entries)))
     (timetrack--render-summary display tbl entries)))
 
+;;;; タスク一覧
+
+(defvar-local timetrack--task-list-view nil
+  "現在の一覧ビュー種別: \\='today か \\='all。")
+
+(define-derived-mode timetrack-task-list-mode special-mode "Timetrack-Tasks"
+  "タスク一覧バッファのメジャーモード。"
+  (setq truncate-lines t))
+
+(let ((map timetrack-task-list-mode-map))
+  (define-key map (kbd "d") #'timetrack-task-done)
+  (define-key map (kbd "r") #'timetrack-task-carryover)
+  (define-key map (kbd "i") #'timetrack-task-clock-in)
+  (define-key map (kbd "a") #'timetrack-task-add-entry)
+  (define-key map (kbd "g") #'timetrack-task-list-refresh))
+
+(defun timetrack--date-display (date-str)
+  "YYYYMMDD 形式の DATE-STR を YYYY-MM-DD に変換する。"
+  (format "%s-%s-%s"
+          (substring date-str 0 4)
+          (substring date-str 4 6)
+          (substring date-str 6 8)))
+
+(defun timetrack--collect-tasks-from-file (file-path date-str)
+  "FILE-PATH の未完了 TODO を収集する。
+各要素は (date file-path line-num task-name priority) のリスト。"
+  (let (tasks)
+    (when (file-exists-p file-path)
+      (with-temp-buffer
+        (insert-file-contents file-path)
+        (goto-char (point-min))
+        (while (re-search-forward
+                "^\\*+ TODO\\(?: \\[#\\([ABC]\\)\\]\\)? \\(.+\\)$"
+                nil t)
+          (push (list date-str
+                      file-path
+                      (line-number-at-pos)
+                      (string-trim (match-string 2))
+                      (match-string 1))
+                tasks))))
+    (nreverse tasks)))
+
+(defun timetrack--all-daily-files ()
+  "全日次ファイルの ((date . path) ...) を日付昇順で返す。"
+  (let ((dir timetrack-directory))
+    (when (file-directory-p dir)
+      (mapcar (lambda (f)
+                (cons (string-remove-prefix "timetrack_" (file-name-base f))
+                      f))
+              (sort (directory-files dir t "timetrack_[0-9]\\{8\\}\\.org$")
+                    #'string<)))))
+
+(defun timetrack--collect-today-tasks ()
+  "今日の日次ファイルから未完了 TODO を収集する。"
+  (timetrack--collect-tasks-from-file
+   (timetrack--daily-path)
+   (format-time-string "%Y%m%d")))
+
+(defun timetrack--collect-all-tasks ()
+  "全日次ファイルから未完了 TODO を収集する。"
+  (cl-mapcan (lambda (pair)
+               (timetrack--collect-tasks-from-file (cdr pair) (car pair)))
+             (timetrack--all-daily-files)))
+
+(defun timetrack--render-task-list (tasks title view)
+  "TASKS を *Timetrack Tasks* バッファに表示する。
+VIEW は \\='today か \\='all。"
+  (let ((buf (get-buffer-create "*Timetrack Tasks*"))
+        (today (format-time-string "%Y%m%d")))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "%s\n" title))
+        (insert (make-string 60 ?═) "\n\n")
+        (if (null tasks)
+            (insert "  (未完了タスクはありません)\n")
+          (dolist (task tasks)
+            (let* ((date      (nth 0 task))
+                   (task-name (nth 3 task))
+                   (priority  (nth 4 task))
+                   (date-disp (if (string= date today)
+                                  "今日      "
+                                (timetrack--date-display date)))
+                   (prio-str  (if priority (format " [#%s]" priority) ""))
+                   (beg (point)))
+              (insert (format "  %s  %s%s\n" date-disp task-name prio-str))
+              (put-text-property beg (1- (point)) 'timetrack-task task))))
+        (insert "\n" (make-string 60 ?─) "\n")
+        (if (eq view 'all)
+            (insert "[d] 完了  [r] 繰り越し  [i] clock-in  [a] 工数追加  [g] 更新  [q] 閉じる\n")
+          (insert "[d] 完了  [i] clock-in  [a] 工数追加  [g] 更新  [q] 閉じる\n")))
+      (timetrack-task-list-mode)
+      (setq timetrack--task-list-view view)
+      (goto-char (point-min))
+      (when tasks (forward-line 3)))
+    (pop-to-buffer buf)))
+
+(defun timetrack--task-at-point ()
+  "現在行のタスクデータを返す。なければ nil。"
+  (get-text-property (point) 'timetrack-task))
+
+(defun timetrack--mark-task-done-in-file (file-path line-num)
+  "FILE-PATH の LINE-NUM 行の TODO を DONE に書き換えて保存する。"
+  (with-current-buffer (find-file-noselect file-path)
+    (save-excursion
+      (goto-char (point-min))
+      (forward-line (1- line-num))
+      (when (re-search-forward "\\bTODO\\b" (line-end-position) t)
+        (replace-match "DONE")
+        (save-buffer)))))
+
+;;;###autoload
+(defun timetrack-task-done ()
+  "現在行のタスクを DONE にマークする。"
+  (interactive)
+  (let ((task (timetrack--task-at-point)))
+    (unless task (user-error "タスク行にカーソルを置いてください"))
+    (timetrack--mark-task-done-in-file (nth 1 task) (nth 2 task))
+    (timetrack-task-list-refresh)
+    (message "完了: %s" (nth 3 task))))
+
+;;;###autoload
+(defun timetrack-task-carryover ()
+  "現在行のタスクを今日のファイルに繰り越す。"
+  (interactive)
+  (let ((task (timetrack--task-at-point)))
+    (unless task (user-error "タスク行にカーソルを置いてください"))
+    (let* ((date      (nth 0 task))
+           (today     (format-time-string "%Y%m%d"))
+           (file-path (nth 1 task))
+           (line-num  (nth 2 task))
+           (task-name (nth 3 task))
+           (priority  (nth 4 task)))
+      (when (string= date today)
+        (user-error "今日のタスクは繰り越し不要です"))
+      ;; 今日のファイルに追加
+      (let* ((today-path    (timetrack--daily-path today))
+             (today-display (format-time-string "%Y-%m-%d"))
+             (prio-str      (if priority (format " [#%s]" priority) ""))
+             (headline      (format "** TODO%s %s" prio-str task-name)))
+        (unless (file-exists-p today-path)
+          (timetrack--create-daily today-path today-display))
+        (with-current-buffer (find-file-noselect today-path)
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^\\* タスク" nil t)
+                (let ((insert-pos
+                       (save-excursion
+                         (if (re-search-forward "^\\*+ " nil t)
+                             (line-beginning-position)
+                           (point-max)))))
+                  (goto-char insert-pos)
+                  (unless (bolp) (insert "\n"))
+                  (insert (format "%s\n" headline)))
+              (goto-char (point-max))
+              (unless (bolp) (insert "\n"))
+              (insert (format "\n* タスク\n\n%s\n" headline))))
+          (save-buffer)))
+      ;; 元タスクを DONE にするか確認
+      (when (y-or-n-p (format "元の「%s」を DONE にしますか? " task-name))
+        (timetrack--mark-task-done-in-file file-path line-num))
+      (timetrack-task-list-refresh)
+      (message "繰り越し完了: %s" task-name))))
+
+;;;###autoload
+(defun timetrack-task-clock-in ()
+  "現在行のタスクで clock-in する。"
+  (interactive)
+  (let ((task (timetrack--task-at-point)))
+    (unless task (user-error "タスク行にカーソルを置いてください"))
+    (let* ((task-name  (nth 3 task))
+           (proj-phase (timetrack--select-project-phase))
+           (project    (nth 0 proj-phase))
+           (phase      (nth 1 proj-phase)))
+      (when timetrack--current-clock
+        (unless (y-or-n-p
+                 (format "現在「%s」が進行中です。切り替えますか? "
+                         (nth 2 timetrack--current-clock)))
+          (user-error "clock-in をキャンセルしました")))
+      (setq timetrack--current-clock
+            (list project phase task-name (current-time)))
+      (timetrack--start-mode-line-timer)
+      (message "clock-in: %s / %s / %s [%s]"
+               project phase task-name (format-time-string "%H:%M")))))
+
+;;;###autoload
+(defun timetrack-task-add-entry ()
+  "現在行のタスク名を使って工数エントリを追加する。"
+  (interactive)
+  (let ((task (timetrack--task-at-point)))
+    (unless task (user-error "タスク行にカーソルを置いてください"))
+    (let* ((task-name  (nth 3 task))
+           (master     (timetrack--read-master))
+           (projects   (mapcar #'car master))
+           (project    (timetrack--completing-read "プロジェクト: " projects))
+           (phases     (cdr (assoc project master)))
+           (phase      (cond
+                        (phases
+                         (timetrack--completing-read "フェーズ: "
+                                                    (append phases (list ""))))
+                        (t (read-string "フェーズ (空でOK): "))))
+           (hours      (read-string (format "工数 (例: 1.5) [タスク: %s]: " task-name))))
+      (unless (string-match-p "^[0-9]+\\.?[0-9]*$" hours)
+        (user-error "工数は数値で入力してください: %s" hours))
+      (timetrack--insert-entry project phase task-name hours)
+      (message "追加: %s | %s | %s | %s 時間" project phase task-name hours))))
+
+;;;###autoload
+(defun timetrack-task-list-refresh ()
+  "タスク一覧バッファを再描画する。"
+  (interactive)
+  (when (eq major-mode 'timetrack-task-list-mode)
+    (let* ((view   timetrack--task-list-view)
+           (tasks  (if (eq view 'today)
+                       (timetrack--collect-today-tasks)
+                     (timetrack--collect-all-tasks)))
+           (title  (if (eq view 'today)
+                       "タスク一覧（今日）"
+                     "タスク一覧（全日付・未完了）")))
+      (timetrack--render-task-list tasks title view))))
+
+;;;###autoload
+(defun timetrack-list-tasks ()
+  "今日のタスクを一覧表示する。"
+  (interactive)
+  (timetrack--ensure-dir)
+  (timetrack--render-task-list
+   (timetrack--collect-today-tasks)
+   "タスク一覧（今日）"
+   'today))
+
+;;;###autoload
+(defun timetrack-list-all-tasks ()
+  "全ファイルの未完了タスクを一覧表示する。"
+  (interactive)
+  (timetrack--ensure-dir)
+  (timetrack--render-task-list
+   (timetrack--collect-all-tasks)
+   "タスク一覧（全日付・未完了）"
+   'all))
+
 ;;;; キーマップ
 
 ;;;###autoload
@@ -417,9 +696,12 @@
   (let ((m (make-sparse-keymap "Timetrack")))
     (define-key m (kbd "t") #'timetrack-open-today)
     (define-key m (kbd "a") #'timetrack-add-entry)
+    (define-key m (kbd "n") #'timetrack-add-task)
     (define-key m (kbd "i") #'timetrack-clock-in)
     (define-key m (kbd "o") #'timetrack-clock-out)
     (define-key m (kbd "c") #'timetrack-clock-status)
+    (define-key m (kbd "l") #'timetrack-list-tasks)
+    (define-key m (kbd "L") #'timetrack-list-all-tasks)
     (define-key m (kbd "s") #'timetrack-show-summary)
     (define-key m (kbd "S") #'timetrack-show-summary-for-date)
     (define-key m (kbd "m") #'timetrack-open-master)
@@ -433,9 +715,12 @@ C-c t がプレフィックスとして設定される。")
   (which-key-add-keymap-based-replacements timetrack-map
     "t" "今日のファイルを開く"
     "a" "工数エントリを追加"
+    "n" "タスクを追加"
     "i" "clock-in (作業開始)"
     "o" "clock-out (作業終了)"
     "c" "clock 状態確認"
+    "l" "今日のタスク一覧"
+    "L" "全タスク一覧（未完了）"
     "s" "今日のサマリー"
     "S" "日付指定でサマリー"
     "m" "プロジェクト定義を開く"))
