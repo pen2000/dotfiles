@@ -22,6 +22,21 @@
 (use-package vertico
   :config (vertico-mode))
 
+;; スペース区切りの柔軟な補完スタイル
+(use-package orderless
+  :config
+  (setq completion-styles '(orderless basic)))
+
+;; 補完候補に説明を表示
+(use-package marginalia
+  :config (marginalia-mode))
+
+;; 強化された検索・バッファ切り替え
+(use-package consult
+  :bind (("C-x b"   . consult-buffer)    ;; バッファ+最近のファイル一覧
+         ("C-c f"   . consult-fd)        ;; ファイル名検索
+         ("C-c g"   . consult-ripgrep))) ;; 内容検索
+
 ;; timetrack: 日次勤怠トラッキング
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (require 'timetrack)
@@ -35,7 +50,8 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages '(vertico which-key org-modern)))
+ '(package-selected-packages
+   '(consult marginalia orderless vertico which-key org-modern)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
