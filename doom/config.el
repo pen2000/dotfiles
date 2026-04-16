@@ -69,6 +69,22 @@
           ("t" "tip" plain "%?"
            :target (file+head "${slug}.org"
                               "#+TITLE: ${title}\n#+DATE: %<%Y-%m-%d>\n#+FILETAGS: :tip:\n\n")
+           :unnarrowed t)
+          ("a" "account" plain "%?"
+           :target (file+head "${slug}.org"
+                              "#+TITLE: ${title}\n#+DATE: %<%Y-%m-%d>\n#+FILETAGS: :account:\n\n")
+           :unnarrowed t)
+          ("i" "idea" plain "* 内容\n%?"
+           :target (file+head "${slug}.org"
+                              "#+TITLE: ${title}\n#+DATE: %<%Y-%m-%d>\n#+FILETAGS: :idea:\n\n")
+           :unnarrowed t)
+          ("e" "trouble" plain "* 現象\n%?\n\n* 環境\n\n* 原因\n\n* 解決策\n\n* 参考URL\n"
+           :target (file+head "${slug}.org"
+                              "#+TITLE: ${title}\n#+DATE: %<%Y-%m-%d>\n#+FILETAGS: :trouble:\n\n")
+           :unnarrowed t)
+          ("p" "project" plain "* 目的・概要\n%?\n\n* リポジトリURL\n\n* 関係者\n\n* メモ\n"
+           :target (file+head "${slug}.org"
+                              "#+TITLE: ${title}\n#+DATE: %<%Y-%m-%d>\n#+FILETAGS: :project:\n\n")
            :unnarrowed t))))
 
 ;; --- consult-org-roam 設定 ---
@@ -76,10 +92,60 @@
   (setq consult-org-roam-grep-func #'consult-ripgrep)
   (consult-org-roam-mode 1))
 
+;; --- org-roam タグ絞り込み検索 ---
+(defun my/org-roam--all-tags ()
+  "org-roam DBから全タグリストを返す。"
+  (mapcar #'car
+          (org-roam-db-query [:select :distinct [tag]
+                              :from tags
+                              :order-by (asc tag)])))
+
+(defun my/org-roam--select-tags ()
+  "completing-read-multipleでタグを選択し、リストで返す。"
+  (completing-read-multiple "タグ選択 (カンマ区切りで複数可): "
+                            (my/org-roam--all-tags)
+                            nil t))
+
+(defun my/org-roam--nodes-with-tags (selected-tags)
+  "SELECTED-TAGS を全て持つノードのリストを返す。"
+  (cl-remove-if-not
+   (lambda (node)
+     (let ((node-tags (org-roam-node-tags node)))
+       (cl-every (lambda (tag) (member tag node-tags))
+                 selected-tags)))
+   (org-roam-node-list)))
+
+(defun my/org-roam-find-by-tags ()
+  "タグで絞り込んでorg-roamノードを検索・ジャンプする。"
+  (interactive)
+  (let ((selected-tags (my/org-roam--select-tags)))
+    (if (null selected-tags)
+        (message "タグが選択されませんでした")
+      (org-roam-node-find
+       nil nil
+       (lambda (node)
+         (let ((node-tags (org-roam-node-tags node)))
+           (cl-every (lambda (tag) (member tag node-tags))
+                     selected-tags)))))))
+
+(defun my/org-roam-grep-by-tags ()
+  "タグで絞り込んだファイルに対してripgrepを実行する。"
+  (interactive)
+  (let ((selected-tags (my/org-roam--select-tags)))
+    (if (null selected-tags)
+        (message "タグが選択されませんでした")
+      (let* ((nodes (my/org-roam--nodes-with-tags selected-tags))
+             (files (delete-dups (mapcar #'org-roam-node-file nodes))))
+        (if (null files)
+            (message "該当するファイルがありませんでした")
+          (consult-ripgrep files))))))
+
 (map! :leader
       :prefix ("n r" . "org-roam")
-      :desc "ノート全文検索"    "/" #'consult-org-roam-search
-      :desc "ノートファイル検索" "o" #'consult-org-roam-file-find)
+      :desc "ノート全文検索"          "/" #'consult-org-roam-search
+      :desc "ノートファイル検索"       "o" #'consult-org-roam-file-find
+      :desc "タグ絞り込みノード検索"   "t" #'my/org-roam-find-by-tags
+      :desc "タグ絞り込みgrep"         "T" #'my/org-roam-grep-by-tags)
 
 ;; --- org-roam-ui 設定 ---
 (after! org-roam-ui
