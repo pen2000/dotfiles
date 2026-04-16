@@ -9,6 +9,7 @@
 ;;
 ;; キーバインド (C-c t がプレフィックス):
 ;;   C-c t t  今日のファイルを開く
+;;   C-c t T  日付指定でファイルを開く
 ;;   C-c t a  工数エントリを追加
 ;;   C-c t n  タスクを追加 (** TODO タスク名)
 ;;   C-c t l  今日のタスク一覧
@@ -144,6 +145,28 @@
     (unless (file-exists-p path)
       (timetrack--create-daily path today)
       (message "本日のファイルを作成しました: %s" path))
+    (find-file path)))
+
+;;;###autoload
+(defun timetrack-open-date (date)
+  "DATE (YYYYMMDD) の勤怠ファイルを開く (存在しない場合は作成)。
+既存ファイルを補完候補として表示する。"
+  (interactive
+   (list
+    (let* ((existing (mapcar #'car (timetrack--all-daily-files)))
+           (chosen   (completing-read "日付 (YYYYMMDD): " existing nil nil)))
+      chosen)))
+  (unless (string-match-p "^[0-9]\\{8\\}$" date)
+    (user-error "日付は YYYYMMDD 形式で入力してください"))
+  (timetrack--ensure-dir)
+  (let* ((path    (timetrack--daily-path date))
+         (display (format "%s-%s-%s"
+                          (substring date 0 4)
+                          (substring date 4 6)
+                          (substring date 6 8))))
+    (unless (file-exists-p path)
+      (timetrack--create-daily path display)
+      (message "ファイルを作成しました: %s" path))
     (find-file path)))
 
 ;;;; エントリ追加 (共通)
@@ -701,6 +724,7 @@ VIEW は \\='today か \\='all。"
 (defvar timetrack-map
   (let ((m (make-sparse-keymap "Timetrack")))
     (define-key m (kbd "t") #'timetrack-open-today)
+    (define-key m (kbd "T") #'timetrack-open-date)
     (define-key m (kbd "a") #'timetrack-add-entry)
     (define-key m (kbd "n") #'timetrack-add-task)
     (define-key m (kbd "i") #'timetrack-clock-in)
@@ -720,6 +744,7 @@ C-c t がプレフィックスとして設定される。")
   (which-key-add-key-based-replacements "C-c t" "勤怠トラッキング")
   (which-key-add-keymap-based-replacements timetrack-map
     "t" "今日のファイルを開く"
+    "T" "日付指定でファイルを開く"
     "a" "工数エントリを追加"
     "n" "タスクを追加"
     "i" "clock-in (作業開始)"
