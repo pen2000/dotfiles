@@ -302,13 +302,20 @@
                            (line-beginning-position))
                           (t (point-max))))))
                   (goto-char insert-pos)
-                  ;; 末尾の空行を確保してから挿入
                   (unless (bolp) (insert "\n"))
-                  (insert (format "** TODO %s\n" task-name))))
+                  ;; 挿入位置の直前にある空行を削除
+                  (while (and (not (bobp))
+                              (save-excursion
+                                (forward-line -1)
+                                (looking-at "^[[:space:]]*$")))
+                    (forward-line -1)
+                    (delete-region (line-beginning-position)
+                                   (progn (forward-line 1) (point))))
+                  (insert (format "** TODO %s\n\n" task-name))))
             ;; タスクセクションが存在しない場合は末尾に追加
             (goto-char (point-max))
             (unless (bolp) (insert "\n"))
-            (insert (format "\n* タスク\n\n** TODO %s\n" task-name))))
+            (insert (format "\n* タスク\n** TODO %s\n" task-name))))
         (save-buffer))
       (message "タスクを追加しました: %s" task-name))))
 
