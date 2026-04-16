@@ -147,6 +147,15 @@
       :desc "タグ絞り込みノード検索"   "t" #'my/org-roam-find-by-tags
       :desc "タグ絞り込みgrep"         "T" #'my/org-roam-grep-by-tags)
 
+(map! :leader
+      :prefix ("r" . "org-roam (shortcut)")
+      :desc "ノード検索・ジャンプ"     "f" #'org-roam-node-find
+      :desc "ノードリンク挿入"         "i" #'org-roam-node-insert
+      :desc "キャプチャ"               "c" #'org-roam-capture
+      :desc "全文検索"                 "/" #'consult-org-roam-search
+      :desc "タグ絞り込みノード検索"   "t" #'my/org-roam-find-by-tags
+      :desc "タグ絞り込みgrep"         "T" #'my/org-roam-grep-by-tags)
+
 ;; --- org-roam-ui 設定 ---
 (after! org-roam-ui
   (setq org-roam-ui-sync-theme t
@@ -159,18 +168,19 @@
 (evil-set-initial-state 'timetrack-task-list-mode 'emacs)
 
 (map! :leader
-      (:prefix ("o t" . "timetrack")
-       :desc "今日のファイルを開く"     "t" #'timetrack-open-today
-       :desc "工数追加"                 "a" #'timetrack-add-entry
-       :desc "タスク追加"               "n" #'timetrack-add-task
-       :desc "clock-in（作業開始）"     "i" #'timetrack-clock-in
-       :desc "clock-out（作業終了）"    "o" #'timetrack-clock-out
-       :desc "clock状態確認"            "c" #'timetrack-clock-status
-       :desc "今日のタスク一覧"         "l" #'timetrack-list-tasks
-       :desc "全タスク一覧（未完了）"   "L" #'timetrack-list-all-tasks
-       :desc "当日サマリー"             "s" #'timetrack-show-summary
-       :desc "日付指定サマリー"         "S" #'timetrack-show-summary-for-date
-       :desc "プロジェクト定義を開く"   "m" #'timetrack-open-master))
+      :prefix ("l" . "timetrack (shortcut)")
+      :desc "今日のファイルを開く"     "t" #'timetrack-open-today
+      :desc "日付指定でファイルを開く" "d" #'timetrack-open-date
+      :desc "工数追加"                 "a" #'timetrack-add-entry
+      :desc "タスク追加"               "n" #'timetrack-add-task
+      :desc "clock-in（作業開始）"     "i" #'timetrack-clock-in
+      :desc "clock-out（作業終了）"    "o" #'timetrack-clock-out
+      :desc "clock状態確認"            "c" #'timetrack-clock-status
+      :desc "今日のタスク一覧"         "l" #'timetrack-list-tasks
+      :desc "全タスク一覧（未完了）"   "L" #'timetrack-list-all-tasks
+      :desc "当日サマリー"             "s" #'timetrack-show-summary
+      :desc "日付指定サマリー"         "S" #'timetrack-show-summary-for-date
+      :desc "プロジェクト定義を開く"   "m" #'timetrack-open-master)
 
 
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
