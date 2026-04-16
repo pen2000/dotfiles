@@ -74,7 +74,11 @@
 ;; --- consult-org-roam 設定 ---
 (after! consult-org-roam
   (setq consult-org-roam-grep-func #'consult-ripgrep)
-  (consult-org-roam-mode 1))
+  (consult-org-roam-mode 1)
+  (map! :leader
+        :prefix ("n r" . "org-roam")
+        :desc "ノート全文検索"    "/" #'consult-org-roam-search
+        :desc "ノートファイル検索" "o" #'consult-org-roam-file-find))
 
 ;; --- org-roam-ui 設定 ---
 (after! org-roam-ui
