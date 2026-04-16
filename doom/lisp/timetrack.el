@@ -271,12 +271,15 @@
           (goto-char (point-min))
           (if (re-search-forward "^\\* タスク" nil t)
               (progn
-                ;; セクション末尾 (次の見出しまたはファイル末) の手前に挿入
+                ;; 区切り線または次の見出しの手前に挿入
                 (let ((insert-pos
                        (save-excursion
-                         (if (re-search-forward "^\\*+ " nil t)
-                             (line-beginning-position)
-                           (point-max)))))
+                         (cond
+                          ((re-search-forward "^-----" nil t)
+                           (line-beginning-position))
+                          ((re-search-forward "^\\*+ " nil t)
+                           (line-beginning-position))
+                          (t (point-max))))))
                   (goto-char insert-pos)
                   ;; 末尾の空行を確保してから挿入
                   (unless (bolp) (insert "\n"))
@@ -596,9 +599,12 @@ VIEW は \\='today か \\='all。"
             (if (re-search-forward "^\\* タスク" nil t)
                 (let ((insert-pos
                        (save-excursion
-                         (if (re-search-forward "^\\*+ " nil t)
-                             (line-beginning-position)
-                           (point-max)))))
+                         (cond
+                          ((re-search-forward "^-----" nil t)
+                           (line-beginning-position))
+                          ((re-search-forward "^\\*+ " nil t)
+                           (line-beginning-position))
+                          (t (point-max))))))
                   (goto-char insert-pos)
                   (unless (bolp) (insert "\n"))
                   (insert (format "%s\n" headline)))
